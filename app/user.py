@@ -50,7 +50,7 @@ def get_user(userId: str, db: Session = Depends(get_db)):
     if not db_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No User with this id: `{userId}` found",
+            detail=f"No user with this id: `{userId}` found",
         )
 
     try:
@@ -66,7 +66,7 @@ def get_user(userId: str, db: Session = Depends(get_db)):
 
 @router.patch(
     "/{userId}",
-    status_code=status.HTTP_202_ACCEPTED,
+    status_code=status.HTTP_200_OK,
     response_model=schemas.UserResponse,
 )
 def update_user(
@@ -119,7 +119,7 @@ def delete_user(userId: str, db: Session = Depends(get_db)):
         user_query.delete(synchronize_session=False)
         db.commit()
         return schemas.DeleteUserResponse(
-            Status=schemas.Status.Success, Message="User deleted successfully"
+            Status=schemas.Status.Success, Message="User deleted"
         )
     except Exception as e:
         db.rollback()
@@ -135,7 +135,7 @@ def delete_user(userId: str, db: Session = Depends(get_db)):
 def get_users(
     db: Session = Depends(get_db), limit: int = 10, page: int = 1, search: str = ""
 ):
-    skip = (page - 1) * limit
+    skip = page * limit
 
     users = (
         db.query(models.User)
