@@ -12,6 +12,12 @@ router = APIRouter()
     "/", status_code=status.HTTP_201_CREATED, response_model=schemas.UserResponse
 )
 def create_user(payload: schemas.UserBaseSchema, db: Session = Depends(get_db)):
+    if payload.first_name == "":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="First name cannot be empty"
+        )
+
     try:
         # Create a new user instance from the payload
         new_user = models.User(**payload.model_dump())
@@ -35,7 +41,7 @@ def create_user(payload: schemas.UserBaseSchema, db: Session = Depends(get_db)):
         ) from e
 
     # Convert the SQLAlchemy model instance to a Pydantic model
-    user_schema = schemas.UserBaseSchema.from_orm(new_user)
+    user_schema = schemas.UserBaseSchema.model_validate(new_user)
     # Return the successful creation response
     return schemas.UserResponse(Status=schemas.Status.Success, User=user_schema)
 
@@ -50,7 +56,7 @@ def get_user(userId: str, db: Session = Depends(get_db)):
     if not db_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"No user with this id: `{userId}` found",
+            detail=f"No User with this id: `{userId}` found",
         )
 
     try:
@@ -82,7 +88,12 @@ def update_user(
         )
 
     try:
-        update_data = payload.dict(exclude_unset=True)
+        update_data = payload.model_dump(exclude_unset=True)
+        if "address" in update_data and update_data["address"] is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Address cannot be set to null during update"
+            )
         user_query.update(update_data, synchronize_session=False)
         db.commit()
         db.refresh(db_user)
@@ -119,7 +130,7 @@ def delete_user(userId: str, db: Session = Depends(get_db)):
         user_query.delete(synchronize_session=False)
         db.commit()
         return schemas.DeleteUserResponse(
-            Status=schemas.Status.Success, Message="User deleted"
+            Status=schemas.Status.Success, Message="User deleted successfully"
         )
     except Exception as e:
         db.rollback()
@@ -135,15 +146,16 @@ def delete_user(userId: str, db: Session = Depends(get_db)):
 def get_users(
     db: Session = Depends(get_db), limit: int = 10, page: int = 1, search: str = ""
 ):
-    skip = page * limit
+    skip = (page * limit) - 1
 
     users = (
         db.query(models.User)
-        .filter(models.User.first_name.contains(search))
+        .filter(models.User.first_name.icontains(search))
         .limit(limit)
         .offset(skip)
         .all()
     )
+    total_results = db.query(models.User).filter(models.User.first_name.icontains(search)).count()
     return schemas.ListUserResponse(
-        status=schemas.Status.Success, results=len(users), users=users
+        status=schemas.Status.Success, results=total_results, users=users
     )
