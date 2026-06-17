@@ -146,7 +146,7 @@ def delete_user(userId: str, db: Session = Depends(get_db)):
 def get_users(
     db: Session = Depends(get_db), limit: int = 10, page: int = 1, search: str = ""
 ):
-    skip = (page * limit) - 1
+    skip = (page - 1) * limit
 
     users = (
         db.query(models.User)

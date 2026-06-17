@@ -13,7 +13,7 @@ class UserBaseSchema(BaseModel):
     )
     last_name: str = Field(..., description="The last name of the user", example="Doe")
     address: str | None = None
-    activated: bool = False
+    activated: bool
     createdAt: datetime | None = None
     updatedAt: datetime | None = None
 

@@ -67,6 +67,7 @@ def user_payload(user_id):
         "first_name": "John",
         "last_name": "Doe",
         "address": "123 Farmville",
+        "activated": True,
     }
 
 

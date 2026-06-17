@@ -104,3 +104,62 @@ def test_update_user_doesnt_exist(test_client, user_id, user_payload_updated):
     assert response.status_code == 404
     response_json = response.json()
     assert response_json["detail"] == f"No User with this id: `{user_id}` found"
+
+
+def test_create_update_user_status_wrong(test_client, user_payload, user_payload_updated):
+    response = test_client.post("/api/users/", json=user_payload)
+    response_json = response.json()
+    assert response.status_code == 201
+
+    time.sleep(1)
+    response = test_client.patch(
+        f"/api/users/{user_payload['id']}", json=user_payload_updated
+    )
+    assert response.status_code == 200
+
+
+def test_pagination_boundary(test_client):
+    # Create 15 users
+    user_ids = []
+    for i in range(15):
+        payload = {
+            "id": str(__import__('uuid').uuid4()),
+            "first_name": f"User{i}",
+            "last_name": "Test",
+            "address": f"Address {i}",
+            "activated": True
+        }
+        response = test_client.post("/api/users/", json=payload)
+        assert response.status_code == 201
+        user_ids.append(payload["id"])
+
+    # Get page 1 (should be 0-9)
+    response = test_client.get("/api/users/?page=1&limit=10")
+    assert response.status_code == 200
+    page1_users = response.json()["users"]
+    assert len(page1_users) == 10
+    page1_names = {u["first_name"] for u in page1_users}
+    expected_page1 = {f"User{i}" for i in range(10)}
+    assert page1_names == expected_page1
+
+    # Get page 2 (should be 10-14)
+    response = test_client.get("/api/users/?page=2&limit=10")
+    assert response.status_code == 200
+    page2_users = response.json()["users"]
+    assert len(page2_users) == 5
+    page2_names = {u["first_name"] for u in page2_users}
+    expected_page2 = {f"User{i}" for i in range(10, 15)}
+    assert page2_names == expected_page2
+
+
+def test_create_user_empty_first_name(test_client):
+    payload = {
+        "id": str(__import__('uuid').uuid4()),
+        "first_name": "",
+        "last_name": "Test",
+        "address": "123 Test St",
+        "activated": True
+    }
+    response = test_client.post("/api/users/", json=payload)
+    assert response.status_code == 400
+    assert "First name cannot be empty" in response.json()["detail"]
